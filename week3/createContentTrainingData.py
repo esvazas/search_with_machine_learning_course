@@ -4,18 +4,21 @@ import random
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
+from nltk import sent_tokenize, word_tokenize
 import pandas as pd
 import re
 
-stemmer = SnowballStemmer("english")
+snowball = SnowballStemmer("english") 
+
 
 def transform_name(product_name):
-    return re.sub(r"""
-               [,.;@#?!&$]+  # Accept one or more copies of punctuation
-               \ *           # plus zero or more copies of a space,
-               """,
-               " ",          # and replace it with a single space
-               stemmer.stem(product_name), flags=re.VERBOSE)
+    tokens = word_tokenize(product_name)
+    tokens = [word for word in tokens if (word.isalpha()) & (word not in stopwords.words('english'))]
+    tokens = [word.lower() for word in tokens]
+    tokens = [snowball.stem(word) for word in tokens]
+    transformed_name = " ".join(tokens)
+    return transformed_name
 
 
 # Directory for product data

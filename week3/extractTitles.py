@@ -6,6 +6,7 @@ import re
 import pandas as pd
 from pathlib import Path
 from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
 from nltk import sent_tokenize, word_tokenize
 
 snowball = SnowballStemmer("english") 
@@ -32,19 +33,12 @@ if args.input:
 sample_rate = args.sample_rate
 
 def transform_training_data(name):
-    name = re.sub(r"""
-               [,.;@#?!&$]+  # Accept one or more copies of punctuation
-               \ *           # plus zero or more copies of a space,
-               """,
-               " ",          # and replace it with a single space
-              snowball.stem(name), flags=re.VERBOSE)
-    return name
-    #tokens = word_tokenize(name)
-    #tokens = [word for word in tokens if word.isalpha()]
-    #tokens = [word.lower() for word in tokens]
-    #tokens = [snowball.stem(word) for word in tokens]
-    #transformed_name = " ".join(tokens)
-    #return transformed_name
+    tokens = word_tokenize(name)
+    tokens = [word for word in tokens if (word.isalpha()) & (word not in stopwords.words('english'))]
+    tokens = [word.lower() for word in tokens]
+    tokens = [snowball.stem(word) for word in tokens]
+    transformed_name = " ".join(tokens)
+    return transformed_name
 
 # Directory for product data
 print("Writing results to %s" % output_file)
@@ -62,7 +56,6 @@ with open(output_file, 'w') as output:
                     output.write(name + "\n")
 
 print("Filtering results to %s" % output_file)
-'''
 NUM2KEEP = [10, 20, 50]
 for num in NUM2KEEP:
     output_df = pd.read_csv(output_file)
@@ -72,4 +65,3 @@ for num in NUM2KEEP:
     output_df = output_df[output_df['y'].isin(labels2keep)]
     output = output_df["y"] + " " + output_df["x"]
     output.to_csv(os.path.split(output_file)[0]+os.path.sep+"titles_minCut{}.txt".format(num), header=None, index=False)
-'''
