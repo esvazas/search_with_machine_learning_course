@@ -3,10 +3,23 @@ import os
 import random
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
+from nltk import sent_tokenize, word_tokenize
+import pandas as pd
+import re
+
+snowball = SnowballStemmer("english") 
+
 
 def transform_name(product_name):
-    # IMPLEMENT
-    return product_name
+    tokens = word_tokenize(product_name)
+    tokens = [word for word in tokens if (word.isalpha()) & (word not in stopwords.words('english'))]
+    tokens = [word.lower() for word in tokens]
+    tokens = [snowball.stem(word) for word in tokens]
+    transformed_name = " ".join(tokens)
+    return transformed_name
+
 
 # Directory for product data
 directory = r'/workspace/search_with_machine_learning_course/data/pruned_products/'
@@ -20,7 +33,7 @@ general.add_argument("--output", default="/workspace/datasets/fasttext/output.fa
 general.add_argument("--sample_rate", default=1.0, type=float, help="The rate at which to sample input (default is 1.0)")
 
 # IMPLEMENT: Setting min_products removes infrequent categories and makes the classifier's task easier.
-general.add_argument("--min_products", default=0, type=int, help="The minimum number of products per category (default is 0).")
+# general.add_argument("--min_products", default=0, type=int, help="The minimum number of products per category (default is 0).")
 
 args = parser.parse_args()
 output_file = args.output
@@ -32,9 +45,8 @@ if os.path.isdir(output_dir) == False:
 if args.input:
     directory = args.input
 # IMPLEMENT:  Track the number of items in each category and only output if above the min
-min_products = args.min_products
+# min_products = args.min_products
 sample_rate = args.sample_rate
-
 print("Writing results to %s" % output_file)
 with open(output_file, 'w') as output:
     for filename in os.listdir(directory):
@@ -56,3 +68,13 @@ with open(output_file, 'w') as output:
                       name = child.find('name').text.replace('\n', ' ')
                       output.write("__label__%s %s\n" % (cat, transform_name(name)))
 
+print("Filtering results to %s" % output_file)
+NUM2KEEP = [50, 100, 200]
+for num in NUM2KEEP:
+    output_df = pd.read_csv(output_file)
+    output_df[['y', 'x']] = output_df.iloc[:, 0].str.split(" ", n=1, expand=True)
+    output_counts = output_df.groupby(by='y').agg("count")['x']
+    labels2keep = output_counts[output_counts > num].index.values
+    output_df = output_df[output_df['y'].isin(labels2keep)]
+    output = output_df["y"] + " " + output_df["x"]
+    output.to_csv(os.path.split(output_file)[0]+os.path.sep+"output_filtered{}.fasttext".format(num), index=False)
